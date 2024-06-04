@@ -1,0 +1,9 @@
+wave_light,Block_age,Response_area
+420nm,young,1017
+460nm,young,929
+600nm,young,939.8
+720nm,young,1081.5
+420nm,old,854.7
+460nm,old,689.9
+600nm,old,841.5
+720nm,old,797.4
