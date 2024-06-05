@@ -1,0 +1,1278 @@
+---
+title: "統計應用方法期末報告"
+author: "311554006黃雅萱 311554057陳宇呈"
+date: "2023-06-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 讀檔
+
+```{r}
+math = read.csv(file="student-mat.csv", header=TRUE, sep=",")
+head(math)
+```
+
+## 資料查看
+```{r}
+names(math)
+```
+
+## 預處理
+
+### 資料檢查
+我們計算null的數量，確定有null以後再進行處理動作，但是發現資料中沒有任何空值，代表資料沒有需要處理的問題。
+```{r}
+sum(is.na(math))
+```
+
+### 目標資料分布
+
+#### 整體
+```{r}
+
+library(ggplot2)
+
+# 假設你有一個 DataFrame df，並想要繪製每個變數的直方圖
+plots <- lapply(names(math), function(var) {
+  if (is.numeric(math[[var]])) {
+    ggplot(data = math, aes(x = .data[[var]])) +
+      geom_histogram() +
+      labs(title = var)
+  }
+})
+
+plots
+
+```
+
+#### 學校
+```{r}
+school = table(math$school)
+prop.table(school)
+```
+
+#### 性別
+```{r}
+sex = table(math$sex)
+prop.table(sex)
+```
+
+#### 年齡
+```{r}
+age = table(math$age)
+barplot(age, names.arg = c(15:22), xlab = "Age", ylab = "Count", main = "Histogram of Age",
+        col = "blue", border = "black")
+```
+
+#### 家庭大小
+```{r}
+famsize = table(math$famsize)
+prop.table(famsize)
+```
+
+#### 選擇學校的原因
+```{r}
+reason = table(math$reason)
+prop.table(reason)
+```
+
+#### 通勤時間
+```{r}
+traveltime = table(math$traveltime)
+barplot(traveltime, names.arg = c(1:4), xlab = "Travel Time", ylab = "Count", main = "Histogram of Travel Time", col = "blue", border = "black")
+```
+
+#### 每週學習時間
+```{r}
+studytime = table(math$studytime)
+barplot(studytime, names.arg = c(1:4), xlab = "Study Time", ylab = "Count", main = "Histogram of Study Time", col = "blue", border = "black")
+```
+
+#### 繼續升學的意願
+```{r}
+higher = table(math$higher)
+prop.table(higher)
+```
+
+#### 談戀愛
+```{r}
+romantic = table(math$romantic)
+prop.table(romantic)
+```
+
+#### 和朋友出去的頻率
+```{r}
+goout = table(math$goout)
+barplot(goout, names.arg = c(1:5), xlab = "Go out", ylab = "Count", main = "Histogram of Go out", col = "blue", border = "black")
+```
+
+#### 平日酒精攝取
+```{r}
+Dalc = table(math$Dalc)
+barplot(Dalc, names.arg = c(1:5), xlab = "Dalc", ylab = "Count", main = "Histogram of Dalc", col = "blue", border = "black")
+```
+
+#### 周末酒精攝取
+```{r}
+Walc = table(math$Walc)
+barplot(Walc, names.arg = c(1:5), xlab = "Walc", ylab = "Count", main = "Histogram of Walc", col = "blue", border = "black")
+```
+
+#### 健康程度
+```{r}
+health = table(math$health)
+barplot(health, names.arg = c(1:5), xlab = "Health", ylab = "Count", main = "Histogram of Health", col = "blue", border = "black")
+```
+
+#### 缺席次數
+```{r}
+
+ggplot(data = math, aes(x = absences)) + 
+  geom_bar(fill='blue')+
+  #geom_bar(stat = "identity", position = "fill") +
+  labs(x="absence",y="count")
+```
+
+### 目標值處理
+我們將三年的成績做平均，以表示出學生在學時的成績表現。
+```{r}
+meanG = (math[,"G1"]+math[,"G2"]+math[,"G3"])/3
+math = cbind(math,meanG)
+math[,c("G1","G2","G3","meanG")]
+```
+
+### 檢查目標值分布
+```{r}
+plot(table(math$meanG), main = "Distribution of grade", ylab = "count")
+qqnorm(math$meanG)
+
+```
+
+## 分析
+
+### 使用全部變數做回歸分析
+
+```{r}
+wholemodel=lm(meanG~school+sex+age+address+famsize+Pstatus+Medu+Fedu+Mjob+Fjob+reason+guardian+traveltime+studytime+failures+schoolsup+famsup+paid+activities+nursery+higher+internet+romantic+famrel+freetime+goout+Dalc+Walc+health+absences, data=math)
+summary(wholemodel)
+```
+
+```{r}
+plot(wholemodel)
+```
+
+### 模型縮減
+透過partial-F test
+H0: full model新增的回歸係數都為0->新增的沒有用->reduced model更好
+
+### 刪減school--GOOD
+```{r}
+fullmodel=wholemodel
+reducedmodel=lm(meanG~sex+age+address+famsize+Pstatus+Medu+Fedu+Mjob+Fjob+reason+guardian+traveltime+studytime+failures+schoolsup+famsup+paid+activities+nursery+higher+internet+romantic+famrel+freetime+goout+Dalc+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+fullmodel=reducedmodel
+```
+
+```{r}
+library(ggplot2)
+ggplot(math, aes(x=school, y=meanG)) + geom_boxplot() + labs(title="Box plot of meanG by school",x="school", y="meanG")
+```
+
+### 刪減sex--BAD
+```{r}
+reducedmodel=lm(meanG~age+address+famsize+Pstatus+Medu+Fedu+Mjob+Fjob+reason+guardian+traveltime+studytime+failures+schoolsup+famsup+paid+activities+nursery+higher+internet+romantic+famrel+freetime+goout+Dalc+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+# fullmodel=reducedmodel
+```
+
+```{r}
+library(ggplot2)
+ggplot(math, aes(x=sex, y=meanG, fill=sex)) + geom_boxplot() + labs(title="Box plot of meanG by sex",x="sex", y="meanG")
+```
+
+### 刪減age--GOOD
+```{r}
+reducedmodel=lm(meanG~sex+address+famsize+Pstatus+Medu+Fedu+Mjob+Fjob+reason+guardian+traveltime+studytime+failures+schoolsup+famsup+paid+activities+nursery+higher+internet+romantic+famrel+freetime+goout+Dalc+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+fullmodel=reducedmodel
+```
+
+```{r}
+library(ggplot2)
+ggplot(math, aes(x=age, y=meanG)) + geom_boxplot() + labs(title="Box plot of meanG by age",x="age", y="meanG")
+```
+
+### 刪減address--GOOD
+```{r}
+reducedmodel=lm(meanG~sex+famsize+Pstatus+Medu+Fedu+Mjob+Fjob+reason+guardian+traveltime+studytime+failures+schoolsup+famsup+paid+activities+nursery+higher+internet+romantic+famrel+freetime+goout+Dalc+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+fullmodel=reducedmodel
+```
+
+```{r}
+library(ggplot2)
+ggplot(math, aes(x=address, y=meanG)) + geom_boxplot() + labs(title="Box plot of meanG by address",x="address", y="meanG")
+```
+
+### 刪減famsize--GOOD
+```{r}
+reducedmodel=lm(meanG~sex+Pstatus+Medu+Fedu+Mjob+Fjob+reason+guardian+traveltime+studytime+failures+schoolsup+famsup+paid+activities+nursery+higher+internet+romantic+famrel+freetime+goout+Dalc+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+fullmodel=reducedmodel
+```
+
+```{r}
+library(ggplot2)
+ggplot(math, aes(x=famsize, y=meanG)) + geom_boxplot() + labs(title="Box plot of meanG by famsize",x="famsize", y="meanG")
+```
+
+### 刪減Pstatus--GOOD
+```{r}
+reducedmodel=lm(meanG~sex+Medu+Fedu+Mjob+Fjob+reason+guardian+traveltime+studytime+failures+schoolsup+famsup+paid+activities+nursery+higher+internet+romantic+famrel+freetime+goout+Dalc+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+fullmodel=reducedmodel
+```
+
+```{r}
+library(ggplot2)
+ggplot(math, aes(x=Pstatus, y=meanG)) + geom_boxplot() + labs(title="Box plot of meanG by Pstatus",x="Pstatus", y="meanG")
+```
+
+### 刪減Medu--GOOD
+```{r}
+reducedmodel=lm(meanG~sex+Fedu+Mjob+Fjob+reason+guardian+traveltime+studytime+failures+schoolsup+famsup+paid+activities+nursery+higher+internet+romantic+famrel+freetime+goout+Dalc+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+fullmodel=reducedmodel
+```
+
+```{r}
+library(ggplot2)
+ggplot(math, aes(x=Medu, y=meanG)) + geom_boxplot() + labs(title="Box plot of meanG by Medu",x="Medu", y="meanG")
+```
+
+### 刪減Fedu--GOOD
+```{r}
+reducedmodel=lm(meanG~sex+Mjob+Fjob+reason+guardian+traveltime+studytime+failures+schoolsup+famsup+paid+activities+nursery+higher+internet+romantic+famrel+freetime+goout+Dalc+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+fullmodel=reducedmodel
+```
+
+```{r}
+library(ggplot2)
+ggplot(math, aes(x=Fedu, y=meanG)) + geom_boxplot() + labs(title="Box plot of meanG by Fedu",x="Fedu", y="meanG")
+```
+
+### 刪減Mjob--BAD
+```{r}
+reducedmodel=lm(meanG~sex+Fjob+reason+guardian+traveltime+studytime+failures+schoolsup+famsup+paid+activities+nursery+higher+internet+romantic+famrel+freetime+goout+Dalc+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+#fullmodel=reducedmodel
+```
+
+### 刪減Fjob--GOOD
+```{r}
+reducedmodel=lm(meanG~sex+Mjob+reason+guardian+traveltime+studytime+failures+schoolsup+famsup+paid+activities+nursery+higher+internet+romantic+famrel+freetime+goout+Dalc+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+fullmodel=reducedmodel
+```
+
+### 刪減reason--GOOD
+```{r}
+reducedmodel=lm(meanG~sex+Mjob+guardian+traveltime+studytime+failures+schoolsup+famsup+paid+activities+nursery+higher+internet+romantic+famrel+freetime+goout+Dalc+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+fullmodel=reducedmodel
+```
+
+```{r}
+library(ggplot2)
+ggplot(math, aes(x=reason, y=meanG)) + geom_boxplot() + labs(title="Box plot of meanG by reason",x="reason", y="meanG")
+```
+
+#### 刪減guardian--GOOD
+```{r}
+reducedmodel=lm(meanG~sex+Mjob+traveltime+studytime+failures+schoolsup+famsup+paid+activities+nursery+higher+internet+romantic+famrel+freetime+goout+Dalc+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+fullmodel=reducedmodel
+```
+ANOVA看統計上均值是否相同
+```{r}
+m = aov(meanG~guardian, data=math)
+summary(m)
+```
+
+#### 刪減traveltime--GOOD
+```{r}
+reducedmodel=lm(meanG~sex+Mjob+studytime+failures+schoolsup+famsup+paid+activities+nursery+higher+internet+romantic+famrel+freetime+goout+Dalc+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+fullmodel=reducedmodel
+```
+
+#### 刪減studytime--BAD
+```{r}
+reducedmodel=lm(meanG~sex+Mjob+failures+schoolsup+famsup+paid+activities+nursery+higher+internet+romantic+famrel+freetime+goout+Dalc+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+#fullmodel=reducedmodel
+```
+
+```{r}
+library(ggplot2)
+ggplot(math, aes(x=studytime, y=meanG)) + geom_boxplot() + labs(title="Box plot of meanG by studytime",x="studytime", y="meanG")
+```
+
+#### 刪減failures--BAD
+```{r}
+reducedmodel=lm(meanG~sex+Mjob+studytime+schoolsup+famsup+paid+activities+nursery+higher+internet+romantic+famrel+freetime+goout+Dalc+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+#fullmodel=reducedmodel
+```
+
+```{r}
+library(ggplot2)
+ggplot(math, aes(x=failures, y=meanG)) + geom_boxplot() + labs(title="Box plot of meanG by failures",x="failures", y="meanG")
+```
+
+#### 刪減schoolsup--BAD
+```{r}
+reducedmodel=lm(meanG~sex+Mjob+studytime+failures+famsup+paid+activities+nursery+higher+internet+romantic+famrel+freetime+goout+Dalc+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+#fullmodel=reducedmodel
+```
+
+```{r}
+library(ggplot2)
+ggplot(math, aes(x=schoolsup, y=meanG)) + geom_boxplot() + labs(title="Box plot of meanG by schoolsup",x="schoolsup", y="meanG")
+```
+
+#### 刪減famsup--BAD
+```{r}
+reducedmodel=lm(meanG~sex+Mjob+studytime+failures+schoolsup+paid+activities+nursery+higher+internet+romantic+famrel+freetime+goout+Dalc+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+#fullmodel=reducedmodel
+```
+
+```{r}
+library(ggplot2)
+ggplot(math, aes(x=famsup, y=meanG)) + geom_boxplot() + labs(title="Box plot of meanG by famsup",x="famsup", y="meanG")
+```
+
+#### 刪減paid--GOOD
+```{r}
+reducedmodel=lm(meanG~sex+Mjob+studytime+failures+schoolsup+famsup+activities+nursery+higher+internet+romantic+famrel+freetime+goout+Dalc+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+fullmodel=reducedmodel
+```
+
+```{r}
+library(ggplot2)
+ggplot(math, aes(x=paid, y=meanG)) + geom_boxplot() + labs(title="Box plot of meanG by paid",x="paid", y="meanG")
+```
+
+#### 刪減activities--GOOD
+```{r}
+reducedmodel=lm(meanG~sex+Mjob+studytime+failures+schoolsup+famsup+nursery+higher+internet+romantic+famrel+freetime+goout+Dalc+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+fullmodel=reducedmodel
+```
+
+```{r}
+library(ggplot2)
+ggplot(math, aes(x=activities, y=meanG)) + geom_boxplot() + labs(title="Box plot of meanG by activities",x="activities", y="meanG")
+```
+
+#### 刪減nursery--GOOD
+```{r}
+reducedmodel=lm(meanG~sex+Mjob+studytime+failures+schoolsup+famsup+higher+internet+romantic+famrel+freetime+goout+Dalc+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+fullmodel=reducedmodel
+```
+
+```{r}
+library(ggplot2)
+ggplot(math, aes(x=nursery, y=meanG)) + geom_boxplot() + labs(title="Box plot of meanG by nursery",x="nursery", y="meanG")
+```
+
+#### 刪減higher--GOOD
+```{r}
+reducedmodel=lm(meanG~sex+Mjob+studytime+failures+schoolsup+famsup+internet+romantic+famrel+freetime+goout+Dalc+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+fullmodel=reducedmodel
+```
+
+```{r}
+library(ggplot2)
+ggplot(math, aes(x=higher, y=meanG, fill=higher)) + geom_boxplot() + labs(title="Box plot of meanG by higher",x="higher", y="meanG")
+```
+
+#### 刪減internet--GOOD
+```{r}
+reducedmodel=lm(meanG~sex+Mjob+studytime+failures+schoolsup+famsup+romantic+famrel+freetime+goout+Dalc+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+fullmodel=reducedmodel
+```
+
+```{r}
+library(ggplot2)
+ggplot(math, aes(x=internet, y=meanG, fill=internet)) + geom_boxplot() + labs(title="Box plot of meanG by internet",x="internet", y="meanG")
+```
+
+#### 刪減romantic--GOOD
+```{r}
+reducedmodel=lm(meanG~sex+Mjob+studytime+failures+schoolsup+famsup+famrel+freetime+goout+Dalc+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+fullmodel=reducedmodel
+```
+
+```{r}
+library(ggplot2)
+ggplot(math, aes(x=romantic, y=meanG, fill=romantic)) + geom_boxplot() + labs(title="Box plot of meanG by romantic",x="romantic", y="meanG")
+```
+
+#### 刪減famrel--GOOD
+```{r}
+reducedmodel=lm(meanG~sex+Mjob+studytime+failures+schoolsup+famsup+freetime+goout+Dalc+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+fullmodel=reducedmodel
+```
+
+```{r}
+library(ggplot2)
+ggplot(math, aes(x=famrel, y=meanG)) + geom_boxplot() + labs(title="Box plot of meanG by famrel",x="famrel", y="meanG")
+```
+
+#### 刪減freetime--GOOD
+```{r}
+reducedmodel=lm(meanG~sex+Mjob+studytime+failures+schoolsup+famsup+goout+Dalc+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+fullmodel=reducedmodel
+```
+
+```{r}
+library(ggplot2)
+ggplot(math, aes(x=freetime, y=meanG, fill=freetime)) + geom_boxplot() + labs(title="Box plot of meanG by freetime",x="freetime", y="meanG")
+```
+
+#### 刪減goout--BAD
+```{r}
+reducedmodel=lm(meanG~sex+Mjob+studytime+failures+schoolsup+famsup+Dalc+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+#fullmodel=reducedmodel
+```
+
+```{r}
+library(ggplot2)
+ggplot(math, aes(x=goout, y=meanG)) + geom_boxplot() + labs(title="Box plot of meanG by goout",x="goout", y="meanG")
+```
+
+#### 刪減Dalc--GOOD
+```{r}
+reducedmodel=lm(meanG~sex+Mjob+studytime+failures+schoolsup+famsup+goout+Walc+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+fullmodel=reducedmodel
+```
+
+#### 刪減Walc--GOOD
+```{r}
+reducedmodel=lm(meanG~sex+Mjob+studytime+failures+schoolsup+famsup+goout+health+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+fullmodel=reducedmodel
+```
+
+#### 刪減health--BAD
+```{r}
+reducedmodel=lm(meanG~sex+Mjob+studytime+failures+schoolsup+famsup+goout+absences, data=math)
+anova(reducedmodel,fullmodel)
+
+#fullmodel=reducedmodel
+```
+
+```{r}
+library(ggplot2)
+ggplot(math, aes(x=health, y=meanG)) + geom_boxplot() + labs(title="Box plot of meanG by health",x="health", y="meanG")
+```
+
+#### 刪減absences--GOOD
+```{r}
+reducedmodel=lm(meanG~sex+Mjob+studytime+failures+schoolsup+famsup+goout+health, data=math)
+anova(reducedmodel,fullmodel)
+
+fullmodel=reducedmodel
+```
+
+```{r}
+library(ggplot2)
+ggplot(math, aes(x=absences, y=meanG)) + geom_boxplot() + labs(title="Box plot of meanG by absences",x="absences", y="meanG")
+```
+
+### 交互作用的檢測
+```{r}
+interaction = lm(meanG ~ (sex + Mjob + studytime + failures + schoolsup + famsup + goout + health)^2, data=math)
+pvalues = summary(interaction)$coefficients[, 4]
+significant = pvalues < 0.05
+summary(interaction)$coefficients[significant,]
+```
+
+```{r}
+model = lm(meanG~sex+Mjob+studytime+failures+schoolsup+famsup+goout+health, data=math)
+summary(model)
+```
+### 重新回歸
+```{r}
+
+model <- lm(meanG ~ (sex + Mjob + studytime + failures + schoolsup + 
+    famsup + goout + health) +(studytime:schoolsup+studytime:famsup+Mjob:health), data = math)
+summary(model)
+plot(model)
+
+```
+
+### ANOVA
+
+### 有趣現象
+
+#### 爸爸媽媽對孩子的影響
+1. 教育程度
+```{r}
+library(ggplot2)
+# 創建第一個資料集
+df1 <- data.frame(
+  table(math$Fedu),
+  category = rep("Dad", 5)
+)
+# 創建第二個資料集
+df2 <- data.frame(
+  table(math$Medu),
+  category = rep("Mom", 5)
+)
+
+# 合併兩個資料集
+df <- rbind(df1, df2)
+
+# 繪製長條圖
+ggplot(df, aes(x = Var1, y = Freq, fill = category)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_manual(values = c("Dad" = "blue", "Mom" = "red")) +
+  labs(title = "爸爸媽媽的教育程度", x = "教育程度", y = "數量")
+```
+2.工作類型
+```{r}
+# 創建第一個資料集
+df1 <- data.frame(
+  table(math$Fjob),
+  category = rep("Dad", 5)
+)
+# 創建第二個資料集
+df2 <- data.frame(
+  table(math$Mjob),
+  category = rep("Mom", 5)
+)
+
+# 合併兩個資料集
+df <- rbind(df1, df2)
+
+# 繪製長條圖
+ggplot(df, aes(x = Var1, y = Freq, fill = category)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_manual(values = c("Dad" = "blue", "Mom" = "red")) +
+  labs(title = "爸爸媽媽的工作類型", x = "工作類型", y = "數量")
+```
+3. 監護人
+```{r}
+barplot(table(math$guardian), main = "Guardian", ylab = "count",
+        border = "black", density = 20)
+
+ggplot(data = math, aes(x = guardian)) +
+  geom_bar() +
+  labs(x="guardian",y="count")
+
+
+ggplot(math, aes(x=guardian, y=meanG, fill=guardian)) + geom_boxplot() + labs(title="Box plot of meanG by guardian",x="guardian", y="meanG")
+```
+
+#### 學校對孩子的影響
+
+```{r}
+barplot(table(math$reason), main = "reason", ylab = "count",
+        border = "black", density = 20)
+barplot(table(math$traveltime), main = "traveltime", ylab = "count",
+        border = "black", density = 20)
+
+
+library(ggplot2)
+a = function(var){
+  tmp = data.frame(table(math[math["traveltime"]==var,"reason"]));
+  colnames(tmp) = c("reason","count");
+  for ( i in names(math$reason)) {
+    if( !(i %in% tmp[["reason"]])){
+      tmp = rbind(tmp, data.frame(age=factor(i), count=0))
+    }
+  
+  }
+  tmp = cbind(tmp, data.frame(traveltime=rep(var,4)))
+  return(tmp)
+}
+failure_count = rbind(a(1),a(2),a(3), a(4))
+failure_count$traveltime = as.factor(failure_count$traveltime)
+failure_count
+# 使用 ggplot 繪製長條圖
+ggplot(data = failure_count, aes(x = reason, y = count, fill = traveltime)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(x="reason",y="ratio",fill="traveltime")
+
+ggplot(data = failure_count, aes(x = reason, y = count, fill = traveltime)) +
+  geom_bar(stat = "identity", position = "fill") +
+  labs(x="reason",y="ratio",fill="traveltime")
+
+```
+
+#### 酒精攝取對孩子的影響
+
+```{r}
+par(mfrow=c(1,2))
+barplot(table(math$Walc), main = "Walc", ylab = "count",
+        border = "black", density = 20)
+barplot(table(math$Dalc), main = "Dalc", ylab = "count",
+        border = "black", density = 20)
+
+
+library(ggplot2)
+a = function(var){
+  tmp = data.frame(table(math[var]));
+  colnames(tmp) = c('freq',"count");
+  for ( i in c(1:5)) {
+    if( !(i %in% tmp[[var]])){
+      tmp = rbind(tmp, data.frame(freq=factor(i), count=0))
+    }
+  
+  }
+  tmp = cbind(tmp, data.frame(day=rep(var,5)))
+  return(tmp)
+}
+failure_count = rbind(a('Walc'),a('Dalc'))
+failure_count
+# 使用 ggplot 繪製長條圖
+ggplot(data = failure_count, aes(x = freq, y = count)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(x="freq",y="count")+ 
+  facet_grid(. ~ day)
+
+```
+
+#### 人際關係對孩子成績的影響
+家庭vs.交往
+```{r}
+plot(table(math$famrel), main = "family relationship(large is better)", ylab = "count")
+
+ggplot(data = math, aes(x = famrel)) + 
+  geom_bar()+
+  #geom_bar(stat = "identity", position = "fill") +
+  labs(title="family relationship(large is better)",x="famrel",y="count")
+
+ggplot(math, aes(x=romantic, y=meanG, fill=romantic)) + geom_boxplot() + labs(title="meanG by romanticship",x="romantic", y="meanG")
+
+
+```
+
+#### 額外課程對孩子成績的影響
+```{r}
+library(ggplot2)
+ggplot(math, aes(x=famsup, y=meanG, fill=famsup)) + geom_boxplot() + labs(title="meanG by famsup",x="famsup", y="meanG")
+ggplot(math, aes(x=schoolsup, y=meanG, fill=schoolsup)) + geom_boxplot() + labs(title="meanG by schoolsup",x="schoolsup", y="meanG")
+ggplot(math, aes(x=paid, y=meanG, fill=paid)) + geom_boxplot() + labs(title="meanG by paid",x="paid", y="meanG")
+
+```
+
+### 變數間的關聯性
+
+#### 兩間學校的選擇理由
+```{r}
+par(mfrow=c(1,2))
+plot(table(math[math$school=="MS",]$reason), main = "reasons for choosing MS", ylab = "count")
+
+plot(table(math[math$school=="GP",]$reason), main = "reasons for choosing GP", ylab = "count")
+
+library(ggplot2)
+a = function(var){
+  tmp = data.frame(table(math[math["school"]==var,"reason"]));
+  colnames(tmp) = c("reason","count");
+  for ( i in names(math$reason)) {
+    if( !(i %in% tmp[["reason"]])){
+      tmp = rbind(tmp, data.frame(reason=factor(i), count=0))
+    }
+  
+  }
+  tmp = cbind(tmp, data.frame(school=rep(var,4)))
+  return(tmp)
+}
+failure_count = rbind(a('MS'),a('GP'))
+failure_count
+# 使用 ggplot 繪製長條圖
+ggplot(data = failure_count, aes(x = reason, y = count)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(x="reason",y="count")+ 
+  facet_grid(. ~ school)
+
+```
+看行列關聯
+```{r}
+library(ggplot2)
+a = function(var){
+  tmp = data.frame(table(math[math["school"]==var,"reason"]));
+  colnames(tmp) = c("reason","count");
+  for ( i in names(math$reason)) {
+    if( !(i %in% tmp[["reason"]])){
+      tmp = rbind(tmp, data.frame(reason=factor(i), count=0))
+    }
+  
+  }
+  tmp <- subset(tmp, select = -reason)
+  return(tmp)
+}
+
+
+reason_school = cbind(a("GP"),a("MS"))
+rownames(reason_school) = unique(math$reason)
+colnames(reason_school) = c("GP","MS")
+
+reason_school
+chisq.test(reason_school)
+
+reason_school-chisq.test(reason_school)$expected
+```
+
+
+
+#### 被當次數和年齡
+
+```{r}
+
+library(ggplot2)
+data.frame(table(math[math["failures"]==3,"age"]))
+           
+           
+a = function(var){
+  tmp = data.frame(table(math[math["failures"]==var,"age"]));
+  colnames(tmp) = c("age","count");
+  for ( i in c(15:22)) {
+    if( !(i %in% tmp[["age"]])){
+      tmp = rbind(tmp, data.frame(age=factor(i), count=0))
+    }
+  
+  }
+  tmp = cbind(tmp, data.frame(failure=rep(var,8)))
+  return(tmp)
+}
+failure_count = rbind(a(0),a(1),a(2),a(3))
+
+failure_count$age = as.numeric(as.character(failure_count$age))
+failure_count
+# 使用 ggplot 繪製長條圖
+ggplot(data = failure_count, aes(x = age, y = count, fill = failure)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(x="age",y="count",fill="failure")
+
+```
+看行列關係但不符合卡方的限制
+```{r}
+
+library(ggplot2)
+           
+           
+a = function(var){
+  tmp = data.frame(table(math[math["failures"]==var,"age"]));
+  colnames(tmp) = c("age","count");
+  for ( i in c(15:22)) {
+    if( !(i %in% tmp[["age"]])){
+      tmp = rbind(tmp, data.frame(age=factor(i), count=0))
+    }
+  
+  }
+  tmp <- subset(tmp, select = -age)
+  return(tmp)
+}
+
+
+failure_age = cbind(a(0),a(1),a(2),a(3))
+rownames(failure_age) = c(15:22)
+colnames(failure_age) = c(0:3)
+
+failure_age
+chisq.test(failure_age)$expected
+
+
+```
+
+### 被當的數量和出去玩頻率的關係goout&failure
+```{r}
+
+library(ggplot2)
+           
+           
+a = function(var){
+  tmp = data.frame(table(math[math["failures"]==var,"goout"]));
+  colnames(tmp) = c("goout","count");
+  for ( i in c(1:5)) {
+    if( !(i %in% tmp[["goout"]])){
+      tmp = rbind(tmp, data.frame(goout=factor(i), count=0))
+    }
+  
+  }
+  tmp = cbind(tmp, data.frame(failure=rep(var,5)))
+  return(tmp)
+}
+failure_count = rbind(a(0),a(1),a(2),a(3))
+
+failure_count$goout = as.numeric(as.character(failure_count$goout))
+failure_count$failure = as.factor(failure_count$failure)
+failure_count
+# 使用 ggplot 繪製長條圖
+ggplot(data = failure_count, aes(x = goout, y = count, fill = failure)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(x="goout",y="ratio",fill="failure")
+
+ggplot(data = failure_count, aes(x = goout, y = count, fill = failure)) +
+  geom_bar(stat = "identity", position = "fill") +
+  labs(x="goout",y="ratio",fill="failure")#+   
+  #scale_fill_manual(values = c("lightgreen", "green", "red", "darkred"))
+
+```
+看行列關聯
+```{r}
+
+library(ggplot2)
+           
+           
+a = function(var){
+  tmp = data.frame(table(math[math["failures"]==var,"goout"]));
+  colnames(tmp) = c("goout","count");
+  for ( i in c(1:5)) {
+    if( !(i %in% tmp[["goout"]])){
+      tmp = rbind(tmp, data.frame(goout=factor(i), count=0))
+    }
+  
+  }
+  tmp <- subset(tmp, select = -goout)
+  return(tmp)
+}
+
+
+goout_failure = cbind(a(0),a(1),a(2),a(3))
+rownames(goout_failure) = c(1:5)
+colnames(goout_failure) = c(0:3)
+
+goout_failure
+chisq.test(goout_failure)
+
+goout_failure-chisq.test(goout_failure)$expected
+```
+
+
+### 出去玩的頻率和交往關係
+```{r}
+
+library(ggplot2)
+           
+           
+a = function(var){
+  tmp = data.frame(table(math[math["romantic"]==var,c("goout","sex")]));
+  colnames(tmp) = c("goout","sex","count");
+  for ( i in c(1:5)) {
+    if( !(i %in% tmp[["goout"]])){
+      tmp = rbind(tmp, data.frame(goout=factor(i), count=0))
+    }
+  
+  }
+  tmp = cbind(tmp, data.frame(romantic=rep(var,5)))
+  return(tmp)
+}
+failure_count = rbind(a('yes'),a('no'))
+
+failure_count$goout = as.numeric(as.character(failure_count$goout))
+failure_count$romantic = as.factor(failure_count$romantic)
+failure_count
+# 使用 ggplot 繪製長條圖
+ggplot(data = failure_count, aes(x = goout, y = count, fill = romantic)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(x="goout",y="ratio",fill="romantic")+ 
+  facet_grid(sex ~ .)
+
+ggplot(data = failure_count, aes(x = goout, y = count, fill = romantic)) +
+  geom_bar(stat = "identity", position = "fill") +
+  labs(x="goout",y="ratio",fill="romantic")+ 
+  facet_grid(sex ~ .)
+
+```
+看行列關連
+```{r}
+
+library(ggplot2)
+           
+           
+a = function(var){
+  tmp = data.frame(table(math[math["romantic"]==var,"goout"]));
+  colnames(tmp) = c("goout","count");
+  for ( i in c(1:5)) {
+    if( !(i %in% tmp[["goout"]])){
+      tmp = rbind(tmp, data.frame(goout=factor(i), count=0))
+    }
+  
+  }
+  
+  tmp <- subset(tmp, select = -goout)
+  return(tmp)
+}
+
+
+goout_romantic = cbind(a('yes'),a('no'))
+rownames(goout_romantic) = unique(math$goout)
+colnames(goout_romantic) = c('yes','no')
+
+goout_romantic
+chisq.test(goout_romantic)
+
+goout_romantic-chisq.test(goout_romantic)$expected
+```
+
+#### 被當次數和缺席次數
+
+```{r}
+
+temp = math
+temp$failures = as.factor(temp$failures)
+
+ggplot(data = temp, aes(x = absences)) + 
+  geom_histogram(aes(fill = failures), position='stack')+
+  #geom_bar(stat = "identity", position = "fill") +
+  labs(x="absence",y="ratio",fill="failure")
+
+ggplot(data = temp, aes(x = absences)) + 
+  geom_histogram(aes(fill = failures), position='fill')+
+  #geom_bar(stat = "identity", position = "fill") +
+  labs(x="absence",y="ratio",fill="failure")
+```
+
+#### 酒精攝取量和缺席次數
+
+```{r}
+
+temp = math
+temp$Dalc = as.factor(temp$Dalc)
+
+ggplot(data = temp, aes(x = absences)) + 
+  geom_histogram(aes(fill = Dalc), position='stack')+
+  #geom_bar(stat = "identity", position = "fill") +
+  labs(x="absence",y="count",fill="Dalc")
+
+ggplot(data = temp, aes(x = absences)) + 
+  geom_histogram(aes(fill = Dalc), position='fill')+
+  #geom_bar(stat = "identity", position = "fill") +
+  labs(x="absence",y="count",fill="Dalc")
+```
+
+#### 家庭關係&愛情關係
+```{r}
+
+library(ggplot2)
+           
+           
+a = function(var){
+  tmp = data.frame(table(math[math["romantic"]==var,"famrel"]));
+  colnames(tmp) = c("famrel","count");
+  for ( i in c(1:5)) {
+    if( !(i %in% tmp[["famrel"]])){
+      tmp = rbind(tmp, data.frame(famrel=factor(i), count=0))
+    }
+  
+  }
+  
+  tmp = cbind(tmp, data.frame(romantic=rep(var,5)))
+  return(tmp)
+}
+failure_count = rbind(a('yes'),a('no'))
+
+failure_count$failure = as.factor(failure_count$romantic)
+failure_count
+# 使用 ggplot 繪製長條圖
+ggplot(data = failure_count, aes(x = famrel, y = count, fill = romantic)) +
+  geom_bar(stat = "identity",position='stack') +
+  labs(x="famrel",y="ratio",fill="romantic")
+
+ggplot(data = failure_count, aes(x = famrel, y = count, fill = romantic)) +
+  geom_bar(stat = "identity",position='fill') +
+  labs(x="famrel",y="ratio",fill="romantic")
+```
+看行列關連
+```{r}
+
+library(ggplot2)
+           
+           
+a = function(var){
+  tmp = data.frame(table(math[math["romantic"]==var,"famrel"]));
+  colnames(tmp) = c("famrel","count");
+  for ( i in c(1:5)) {
+    if( !(i %in% tmp[["famrel"]])){
+      tmp = rbind(tmp, data.frame(famrel=factor(i), count=0))
+    }
+  
+  }
+  
+  tmp <- subset(tmp, select = -famrel)
+  return(tmp)
+}
+
+
+famrel_romantic = cbind(a('yes'),a('no'))
+rownames(famrel_romantic) = unique(math$famrel)
+colnames(famrel_romantic) = c('yes','no')
+
+famrel_romantic
+chisq.test(famrel_romantic)
+
+famrel_romantic-chisq.test(famrel_romantic)$expected
+```
+
+#### 教育&工作
+```{r}
+
+library(ggplot2)
+           
+a = function(var){
+  tmp = data.frame(table(math[math["Medu"]==var,"Mjob"]));
+  colnames(tmp) = c("job","count");
+  tmpf = data.frame(table(math[math["Fedu"]==var,"Fjob"]));
+  colnames(tmpf) = c("job","count");
+  
+  for ( i in unique(math$Fjob)) {
+    if( !(i %in% tmpf[["job"]])){
+      tmpf = rbind(tmpf, data.frame(job=factor(i), count=0))
+    }
+  }
+  
+  for ( i in unique(math$Mjob)) {
+    if( !(i %in% tmp[["job"]])){
+      tmp = rbind(tmp, data.frame(job=factor(i), count=0))
+    }
+    tmp[tmp$job==i,"count"] = tmp[tmp$job==i,"count"] + tmpf[tmpf$job==i,"count"]
+  }
+  tmp = cbind(tmp, data.frame(edu=rep(var,5)))
+  return(tmp)
+}
+
+failure_count = rbind(a(0),a(1),a(2),a(3),a(4))
+
+failure_count$job = as.factor(failure_count$job)
+failure_count
+# 使用 ggplot 繪製長條圖
+ggplot(data = failure_count, aes(x = job, y = count, fill = edu)) +
+  geom_bar(stat = "identity",position='stack') +
+  labs(x="job",y="count",fill="edu")
+
+ggplot(data = failure_count, aes(x = job, y = count, fill = edu)) +
+  geom_bar(stat = "identity",position='fill') +
+  labs(x="job",y="count",fill="edu")
+```
+看行列關連
+```{r}
+
+library(ggplot2)
+           
+a = function(var){
+  tmp = data.frame(table(math[math["Medu"]==var,"Mjob"]));
+  colnames(tmp) = c("job","count");
+  tmpf = data.frame(table(math[math["Fedu"]==var,"Fjob"]));
+  colnames(tmpf) = c("job","count");
+  
+  for ( i in unique(math$Fjob)) {
+    if( !(i %in% tmpf[["job"]])){
+      tmpf = rbind(tmpf, data.frame(job=factor(i), count=0))
+    }
+  }
+  
+  for ( i in unique(math$Mjob)) {
+    if( !(i %in% tmp[["job"]])){
+      tmp = rbind(tmp, data.frame(job=factor(i), count=0))
+    }
+    tmp[tmp$job==i,"count"] = tmp[tmp$job==i,"count"] + tmpf[tmpf$job==i,"count"]
+  }
+  #tmp = cbind(tmp, data.frame(edu=rep(var,5)))
+  #tmp <- subset(tmp, select = -job)
+  return(tmp)
+}
+
+edu_job=data.frame(x1=c(0:4),x2=c(0:4),x3=c(0:4),x4=c(0:4),x5=c(0:4))
+rownames(edu_job) = unique(math$Fjob)
+temp = c(a(0),a(1),a(2),a(3),a(4))
+name=c("x1","x2","x3","x4","x5")
+for ( i in unique(math$Fjob)){
+  for ( j in c(0:4)){
+    t = a(j)
+    edu_job[i,name[j+1]]=t[t$job==i,"count"]
+    #print(temp[j][temp[j]$job==i]$count)
+    #edu_job[i,j]=temp[j,i]
+  }
+  
+}
+rownames(edu_job) = unique(math$Fjob)
+colnames(edu_job) = c(0:4)
+
+edu_job
+chisq.test(edu_job)
+
+edu_job-chisq.test(edu_job)$expected
+```
+
+#### 教育&性別
+```{r}
+par(mfrow=c(1,2))
+barplot(table(math$Fedu), main = "Fedu", ylab = "count",
+        border = "black", density = 20)
+barplot(table(math$Medu), main = "Medu", ylab = "count",
+        border = "black", density = 20)
+
+
+library(ggplot2)
+a = function(var){
+  tmp = data.frame(table(math[var]));
+  colnames(tmp) = c('edu',"count");
+  for ( i in c(0:4)) {
+    if( !(i %in% tmp[['edu']])){
+      tmp = rbind(tmp, data.frame(edu=factor(i), count=0))
+    }
+  
+  }
+  tmp = cbind(tmp, data.frame(sex=rep(var,5)))
+  return(tmp)
+}
+failure_count = rbind(a('Fedu'),a('Medu'))
+failure_count
+# 使用 ggplot 繪製長條圖
+ggplot(data = failure_count, aes(x = edu, y = count)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(x="edu",y="count")+ 
+  facet_grid(. ~ sex)
+
+```
+看行列關連
+```{r}
+par(mfrow=c(1,2))
+barplot(table(math$Fedu), main = "Fedu", ylab = "count",
+        border = "black", density = 20)
+barplot(table(math$Medu), main = "Medu", ylab = "count",
+        border = "black", density = 20)
+
+
+library(ggplot2)
+a = function(var){
+  tmp = data.frame(table(math[var]));
+  colnames(tmp) = c('edu',"count");
+  for ( i in c(0:4)) {
+    if( !(i %in% tmp[['edu']])){
+      tmp = rbind(tmp, data.frame(edu=factor(i), count=0))
+    }
+  
+  }
+  tmp <- subset(tmp, select = -edu)
+  return(tmp)
+}
+
+
+edu_sex = cbind(a('Fedu'),a('Medu'))
+rownames(edu_sex) = c(0:4)
+colnames(edu_sex) = c('Fedu','Medu')
+
+edu_sex
+chisq.test(edu_sex)
+
+edu_sex-chisq.test(edu_sex)$expected
+
+```
+
+#### 課外時間安排
+```{r}
+library(ggExtra)
+p=ggplot(data = math, aes(x = freetime, y = goout,
+                      color = activities, shape = activities)) + 
+  geom_jitter(alpha = 1/2, size = 3) #+ 
+  #geom_smooth(method = "lm", se = FALSE) + 
+  #geom_smooth(se = FALSE)
+# classical
+#p <- ggplot(math, aes(x = freetime, y = goout, color = activities)) +
+#      geom_point(size = 5) 
+# scatter plot + marginal histogram
+ggExtra::ggMarginal(p, type = "histogram", color = "purple")
+```
+看行列關連
+```{r}
+
+library(ggplot2)
+           
+           
+a = function(var){
+  tmp = data.frame(table(math[math["freetime"]==var,"goout"]));
+  colnames(tmp) = c("goout","count");
+  for ( i in c(1:5)) {
+    if( !(i %in% tmp[["goout"]])){
+      tmp = rbind(tmp, data.frame(goout=factor(i), count=0))
+    }
+  
+  }
+  
+  tmp <- subset(tmp, select = -goout)
+  return(tmp)
+}
+
+
+goout_freetime = cbind(a(1),a(2),a(3),a(4),a(5))
+rownames(goout_freetime) = c(1:5)
+colnames(goout_freetime) = c(1:5)
+
+goout_freetime
+chisq.test(goout_freetime)
+
+goout_freetime-chisq.test(goout_freetime)$expected
+```
+
+### 補充、關聯性-交互關係用
+//沒有使用到
+```{r}
+
+library(GGally)
+           
+ggcorr(data = math, 
+               method = c("complete", "pearson"))
+
+```
+
+
